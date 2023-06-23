@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -16,6 +17,13 @@ public class SeckillActivityController {
     @Autowired
     private com.jiuzhang.seckill8jdk.db.dao.SeckillActivityDao seckillActivityDao;
 
+
+    @RequestMapping("/seckills")
+    public String activityList(Map<String, Object> resultMap) {
+        List<SeckillActivity> seckillActivities = seckillActivityDao.querySeckillActivitysByStatus(1);
+        resultMap.put("seckillActivities", seckillActivities);
+        return "seckill_activity";
+    }
     @RequestMapping("/addSeckillActivityAction")
     public String addSeckillActivityAction(
             @RequestParam("name") String name,
