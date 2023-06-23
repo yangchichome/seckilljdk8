@@ -13,7 +13,7 @@ public class RedisDemoTest {
     private RedisService redisService;
 
     @Test
-    public void  stockTest(){
+    public void setTest(){
         redisService.setValue("stock:19",10L);
     }
 
@@ -23,12 +23,12 @@ public class RedisDemoTest {
      System.out.println(stock);
     }
 
-//    @Test
-//    public void stockDeductValidatorTest(){
-//      boolean result =  redisService.stockDeductValidator("stock:19");
-//      System.out.println("result:"+result);
-//      String stock =  redisService.getValue("stock:19");
-//      System.out.println("stock:"+stock);
-//    }
+    @Test
+    public void stockDeductValidatorTest(){
+      boolean result =  redisService.stockDeductValidator("stock:19");
+      System.out.println("result:"+result);
+      String stock =  redisService.getValue("stock:19");
+      System.out.println("stock:"+stock);
+    }
 
 }
