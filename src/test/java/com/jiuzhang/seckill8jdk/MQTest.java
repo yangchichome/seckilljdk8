@@ -16,4 +16,10 @@ public class MQTest {
         rocketMQService.sendMessage("test-jiuzhang", "Hello World!" + new
                 Date().toString());
     }
+
+    @Test
+    public void getMQTest() throws Exception{
+
+    }
+
 }
