@@ -1,13 +1,14 @@
 package com.jiuzhang.seckill8jdk.web;
 
+
 import com.jiuzhang.seckill8jdk.db.dao.OrderDao;
+import com.jiuzhang.seckill8jdk.db.dao.SeckillActivityDao;
 import com.jiuzhang.seckill8jdk.db.dao.SeckillCommodityDao;
 import com.jiuzhang.seckill8jdk.db.po.Order;
 import com.jiuzhang.seckill8jdk.db.po.SeckillActivity;
 import com.jiuzhang.seckill8jdk.db.po.SeckillCommodity;
 import com.jiuzhang.seckill8jdk.services.SeckillActivityService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.ognl.ParseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,20 +18,26 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.math.BigDecimal;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Map;
+
 @Slf4j
 @Controller
 public class SeckillActivityController {
     @Autowired
-    private com.jiuzhang.seckill8jdk.db.dao.SeckillActivityDao seckillActivityDao;
+    private SeckillActivityDao seckillActivityDao;
+
     @Autowired
     private SeckillCommodityDao seckillCommodityDao;
+
     @Autowired
     private SeckillActivityService seckillActivityService;
+
     @Autowired
     private OrderDao orderDao;
+
 
     /**
      * 查询秒杀活动的列表
@@ -39,9 +46,9 @@ public class SeckillActivityController {
      * @return
      */
     @RequestMapping("/seckills")
-    public String activityList(Map<String, Object> resultMap) {
+    public String sucessTest(Map<String,Object> resultMap){
         List<SeckillActivity> seckillActivities = seckillActivityDao.querySeckillActivitysByStatus(1);
-        resultMap.put("seckillActivities", seckillActivities);
+        resultMap.put("seckillActivities",seckillActivities);
         return "seckill_activity";
     }
 
@@ -66,6 +73,7 @@ public class SeckillActivityController {
         return "seckill_item";
     }
 
+    @ResponseBody
     @RequestMapping("/addSeckillActivityAction")
     public String addSeckillActivityAction(
             @RequestParam("name") String name,
@@ -74,11 +82,10 @@ public class SeckillActivityController {
             @RequestParam("oldPrice") BigDecimal oldPrice,
             @RequestParam("seckillNumber") long seckillNumber,
             @RequestParam("startTime") String startTime,
-            @RequestParam("endTime") String endTime,
-            Map<String, Object> resultMap
-    ) throws ParseException, java.text.ParseException {
-        startTime = startTime.substring(0, 10) + startTime.substring(11);
-        endTime = endTime.substring(0, 10) + endTime.substring(11);
+            @RequestParam("endTime") String endTime
+    ) throws ParseException {
+        startTime = startTime.substring(0, 10) +  startTime.substring(11);
+        endTime = endTime.substring(0, 10) +  endTime.substring(11);
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-ddhh:mm");
         SeckillActivity seckillActivity = new SeckillActivity();
         seckillActivity.setName(name);
@@ -92,8 +99,7 @@ public class SeckillActivityController {
         seckillActivity.setStartTime(format.parse(startTime));
         seckillActivity.setEndTime(format.parse(endTime));
         seckillActivityDao.inertSeckillActivity(seckillActivity);
-        resultMap.put("seckillActivity", seckillActivity);
-        return "add_success";
+        return seckillActivity.toString();
     }
 
     /**
@@ -101,7 +107,7 @@ public class SeckillActivityController {
      * @return
      */
     @RequestMapping("/addSeckillActivity")
-    public String addSeckillActivity() {
+    public String addSeckillActivity(){
         return "add_activity";
     }
 
@@ -111,7 +117,7 @@ public class SeckillActivityController {
      * @param seckillActivityId
      * @return
      */
-    @ResponseBody
+//    @ResponseBody
     @RequestMapping("/seckill/buy/{userId}/{seckillActivityId}")
     public ModelAndView seckillCommodity(@PathVariable long userId, @PathVariable long seckillActivityId) {
         boolean stockValidateResult = false;
@@ -135,5 +141,37 @@ public class SeckillActivityController {
         }
         modelAndView.setViewName("seckill_result");
         return modelAndView;
+    }
+
+    /**
+     * 订单查询
+     * @param orderNo
+     * @return
+     */
+    @RequestMapping("/seckill/orderQuery/{orderNo}")
+    public ModelAndView orderQuery(@PathVariable String orderNo) {
+        log.info("订单查询，订单号：" + orderNo);
+        Order order = orderDao.queryOrder(orderNo);
+        ModelAndView modelAndView = new ModelAndView();
+
+        if (order != null) {
+            modelAndView.setViewName("order");
+            modelAndView.addObject("order", order);
+            SeckillActivity seckillActivity = seckillActivityDao.querySeckillActivityById(order.getSeckillActivityId());
+            modelAndView.addObject("seckillActivity", seckillActivity);
+        } else {
+            modelAndView.setViewName("order_wait");
+        }
+        return modelAndView;
+    }
+
+    /**
+     * 订单支付
+     * @return
+     */
+    @RequestMapping("/seckill/payOrder/{orderNo}")
+    public String payOrder(@PathVariable String orderNo){
+        seckillActivityService.payOrderProcess(orderNo);
+        return "redirect:/seckill/orderQuery/" + orderNo;
     }
 }

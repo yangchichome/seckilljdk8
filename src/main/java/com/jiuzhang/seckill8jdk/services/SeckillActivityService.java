@@ -1,13 +1,19 @@
 package com.jiuzhang.seckill8jdk.services;
 
+import com.alibaba.fastjson.JSON;
+import com.jiuzhang.seckill8jdk.db.dao.OrderDao;
 import com.jiuzhang.seckill8jdk.db.dao.SeckillActivityDao;
 import com.jiuzhang.seckill8jdk.db.po.Order;
 import com.jiuzhang.seckill8jdk.db.po.SeckillActivity;
+import com.jiuzhang.seckill8jdk.mq.RocketMQService;
 import com.jiuzhang.seckill8jdk.util.RedisService;
 import com.jiuzhang.seckill8jdk.util.SnowFlake;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
+@Slf4j
 @Service
 public class SeckillActivityService {
 
@@ -15,8 +21,10 @@ public class SeckillActivityService {
     private RedisService redisService;
     @Autowired
     private SeckillActivityDao seckillActivityDao;
-
-
+    @Autowired
+    private RocketMQService rocketMQService;
+    @Autowired
+    private OrderDao orderDao;
     /**
      * datacenterId;  数据中心
      * machineId;     机器标识
@@ -53,9 +61,9 @@ public class SeckillActivityService {
         order.setUserId(userId);
         order.setOrderAmount(seckillActivity.getSeckillPrice().longValue());
         /*
-//         *2.发送创建订单消息
-//         */
-//        rocketMQService.sendMessage("seckill_order", JSON.toJSONString(order));
+         *2.发送创建订单消息
+         */
+        rocketMQService.sendMessage("seckill_order", JSON.toJSONString(order));
 
         /*
          * 3.发送订单付款状态校验消息
@@ -64,5 +72,21 @@ public class SeckillActivityService {
          */
 //        rocketMQService.sendDelayMessage("pay_check",JSON.toJSONString(order),5);
         return order;
+    }
+
+    /**
+     * 订单支付完成处理
+     * @param orderNo
+     */
+    public void payOrderProcess(String orderNo) {
+        log.info("完成支付订单 订单号：" + orderNo);
+        Order order = orderDao.queryOrder(orderNo);
+        boolean deductStockResult = seckillActivityDao.deductStock(order.getSeckillActivityId());
+        if (deductStockResult) {
+            order.setPayTime(new Date());
+            // 订单状态 0、没有可用库存，无效订单  1、已创建等待支付  2、完成支付
+            order.setOrderStatus(2);
+            orderDao.updateOrder(order);
+        }
     }
 }
