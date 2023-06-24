@@ -19,7 +19,7 @@ public class RedisService {
      * @param key
      * @param value
      */
-    public void setValue(String key, Long value) {
+    public void setValue(String key, String value) {
         Jedis jedisClient = jedisPool.getResource();
         jedisClient.set(key, value.toString());
         jedisClient.close();

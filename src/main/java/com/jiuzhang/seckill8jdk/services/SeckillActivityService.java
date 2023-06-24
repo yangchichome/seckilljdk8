@@ -3,8 +3,10 @@ package com.jiuzhang.seckill8jdk.services;
 import com.alibaba.fastjson.JSON;
 import com.jiuzhang.seckill8jdk.db.dao.OrderDao;
 import com.jiuzhang.seckill8jdk.db.dao.SeckillActivityDao;
+import com.jiuzhang.seckill8jdk.db.dao.SeckillCommodityDao;
 import com.jiuzhang.seckill8jdk.db.po.Order;
 import com.jiuzhang.seckill8jdk.db.po.SeckillActivity;
+import com.jiuzhang.seckill8jdk.db.po.SeckillCommodity;
 import com.jiuzhang.seckill8jdk.mq.RocketMQService;
 import com.jiuzhang.seckill8jdk.util.RedisService;
 import com.jiuzhang.seckill8jdk.util.SnowFlake;
@@ -26,6 +28,8 @@ public class SeckillActivityService {
     private RocketMQService rocketMQService;
     @Autowired
     private OrderDao orderDao;
+    @Autowired
+    private SeckillCommodityDao seckillCommodityDao;
     /**
      * datacenterId;  数据中心
      * machineId;     机器标识
@@ -68,6 +72,21 @@ public class SeckillActivityService {
          */
         rocketMQService.sendDelayMessage("pay_check",JSON.toJSONString(order),3);
         return order;
+    }
+
+    /**
+     * 将秒杀详情相关信息倒入redis
+     * @param seckillActivityId
+     */
+    public void pushSeckillInfoToRedis(long seckillActivityId) {
+        SeckillActivity seckillActivity =
+                seckillActivityDao.querySeckillActivityById(seckillActivityId);
+        redisService.setValue("seckillActivity:" + seckillActivityId,
+                JSON.toJSONString(seckillActivity));
+        SeckillCommodity seckillCommodity =
+                seckillCommodityDao.querySeckillCommodityById(seckillActivity.getCommodityId());
+        redisService.setValue("seckillCommodity:" +
+                seckillActivity.getCommodityId(), JSON.toJSONString(seckillCommodity));
     }
 
     /**
