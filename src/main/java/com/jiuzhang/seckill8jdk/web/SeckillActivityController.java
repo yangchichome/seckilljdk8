@@ -1,6 +1,12 @@
 package com.jiuzhang.seckill8jdk.web;
 
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.alibaba.fastjson.JSON;
 import com.jiuzhang.seckill8jdk.db.dao.OrderDao;
 import com.jiuzhang.seckill8jdk.db.dao.SeckillActivityDao;
@@ -20,10 +26,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +52,8 @@ public class SeckillActivityController {
     private OrderDao orderDao;
     @Resource
     private RedisService redisService;
+
+
     /**
      * 查询秒杀活动的列表
      *
@@ -51,12 +61,40 @@ public class SeckillActivityController {
      * @return
      */
     @RequestMapping("/seckills")
-    public String sucessTest(Map<String,Object> resultMap){
-        List<SeckillActivity> seckillActivities = seckillActivityDao.querySeckillActivitysByStatus(1);
-        resultMap.put("seckillActivities",seckillActivities);
-        return "seckill_activity";
+    public String activityList(Map<String, Object> resultMap) {
+        try (Entry entry = SphU.entry("seckills")) {
+            List<SeckillActivity> seckillActivities =
+                    seckillActivityDao.querySeckillActivitysByStatus(1);
+            resultMap.put("seckillActivities", seckillActivities);
+            return "seckill_activity";
+        } catch (BlockException ex) {
+            log.error("查询秒杀活动的列表被限流 "+ex.toString());
+            return "wait";
+        }
     }
+    @PostConstruct
+    public void seckillsFlow(){
+        //1.创建存放限流规则的集合
+        List<FlowRule> rules = new ArrayList<>();
+        //2.创建限流规则
+        FlowRule rule = new FlowRule();
+        //定义资源，表示sentinel会对那个资源生效
+        rule.setResource("seckills");
+        //定义限流规则类型,QPS类型
+        rule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        //定义QPS每秒通过的请求数
+        rule.setCount(1);
 
+        FlowRule rule2 = new FlowRule();
+        rule2.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        rule2.setCount(2);
+        rule2.setResource("HelloResource");
+        //3.将限流规则放到集合中
+        rules.add(rule);
+        rules.add(rule2);
+        //4.加载限流规则
+        FlowRuleManager.loadRules(rules);
+    }
     /**
      * 秒杀商品详情
      * @param resultMap
